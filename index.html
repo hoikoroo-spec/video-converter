@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111111"><title>動画コンバーター</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f7;color:#171717;margin:0;padding:20px}main{max-width:650px;margin:auto}h1{font-size:24px}.card{background:white;padding:18px;border-radius:16px;margin:14px 0}button,select,input{font:inherit}button{border:0;border-radius:10px;padding:12px;background:#171717;color:white;margin:5px 3px}button:disabled{opacity:.4}video{width:100%;background:black;border-radius:10px}input[type=range]{width:100%}.clip{padding:10px;border-bottom:1px solid #ddd}.muted{color:#666;font-size:13px}#status{white-space:pre-wrap}a{display:inline-block;padding:12px;color:#0066cc}</style></head><body><main><h1>🎬 動画コンバーター</h1><p class="muted">DJI動画を切り抜き・結合してLINE用MP4に変換</p>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f7;color:#171717;margin:0;padding:20px}main{max-width:650px;margin:auto}h1{font-size:24px}.card{background:white;padding:18px;border-radius:16px;margin:14px 0}button,select,input{font:inherit}button{border:0;border-radius:10px;padding:12px;background:#171717;color:white;margin:5px 3px}button:disabled{opacity:.4}video{width:100%;background:black;border-radius:10px}input[type=range]{width:100%}.clip{padding:10px;border-bottom:1px solid #ddd}.muted{color:#666;font-size:13px}#status{white-space:pre-wrap}a{display:inline-block;padding:12px;color:#0066cc}</style></head><body><main><h1>🎬 動画コンバーター</h1><p class="muted">DJI動画の切り抜き・結合（Safari標準録画方式・試験版）</p>
 <div class="card"><label>① 写真アプリから動画を選択<input id="file" type="file" accept="video/*"></label><p id="info"></p><video id="video" controls playsinline></video></div>
 <div class="card"><h3>② 切り取り範囲</h3><label>開始 <span id="sv">0:00</span><input id="start" type="range" min="0" max="1" step=".1" value="0"></label><label>終了 <span id="ev">0:00</span><input id="end" type="range" min="0" max="1" step=".1" value="1"></label><button id="add">＋ シーンを追加</button><button id="all">全範囲</button><div id="clips"></div></div>
-<div class="card"><h3>③ LINE用に書き出し</h3><label>画質 <select id="quality"><option value="1080">1080p 高画質</option><option value="720">720p 軽量</option><option value="original">元の解像度</option></select></label><p class="muted">H.264 / AAC / MP4。変換は端末内で行います。</p><button id="convert">変換する</button><p id="status"></p><video id="result" controls playsinline hidden></video><a id="save" hidden download="LINE_video.mp4">動画を保存</a><button id="share" hidden>LINEなどに共有</button></div><p class="muted">iPhone Safariのメモリ制限により、4K・長時間動画は変換できない場合があります。最初は短い動画でお試しください。</p></main>
+<div class="card"><h3>③ LINE用に書き出し</h3><label>画質 <select id="quality"><option value="1080">1080p 高画質</option><option value="720">720p 軽量</option><option value="original">元の解像度</option></select></label><p class="muted">ブラウザ標準の録画機能でMP4を書き出します。音声・H.264互換性は端末に依存します。</p><button id="convert">変換する</button><p id="status"></p><video id="result" controls playsinline hidden></video><a id="save" hidden download="LINE_video.mp4">動画を保存</a><button id="share" hidden>LINEなどに共有</button></div><p class="muted">書き出しは動画の再生時間程度かかります。画面を閉じずにお待ちください。Safariの制限で音声が出ない・書き出せない場合があります。</p></main>
 <script type="module">
 const $=id=>document.getElementById(id);let file=null,duration=0,clips=[],output=null,sourceUrl=null,resultUrl=null;const time=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');const status=t=>$('status').textContent=t;
 function ranges(){let a=+$('start').value,b=+$('end').value;if(a>b){if(document.activeElement===$('start')){$('end').value=a;b=a}else{$('start').value=b;a=b}}$('sv').textContent=time(a);$('ev').textContent=time(b)}
@@ -12,6 +12,45 @@ $('video').onloadedmetadata=()=>{duration=$('video').duration;if(!Number.isFinit
 $('start').oninput=$('end').oninput=ranges;$('all').onclick=()=>{$('start').value=0;$('end').value=duration;ranges()};
 $('add').onclick=()=>{if(!file||!duration)return;let start=+$('start').value,end=+$('end').value;if(end-start<.1)return alert('開始と終了を離してください');clips.push({start,end});render()};
 function render(){$('clips').replaceChildren();clips.forEach((c,i)=>{let d=document.createElement('div');d.className='clip';d.textContent=(i+1)+'. '+time(c.start)+' ～ '+time(c.end)+' ';for(const [label,action] of [['↑',()=>{if(i){[clips[i-1],clips[i]]=[clips[i],clips[i-1]];render()}}],['↓',()=>{if(i<clips.length-1){[clips[i+1],clips[i]]=[clips[i],clips[i+1]];render()}}],['削除',()=>{clips.splice(i,1);render()}]]){let b=document.createElement('button');b.textContent=label;b.onclick=action;d.append(b)}$('clips').append(d)})}
-$('convert').onclick=async()=>{if(!file)return alert('動画を選んでください');let parts=clips.length?clips:[{start:+$('start').value,end:+$('end').value}];if(parts.some(p=>p.end-p.start<.1))return alert('切り取り範囲を確認してください');if(file.size>250*1024*1024)return alert('この動画は250MBを超えています。iPhoneのSafariではメモリ不足になりやすいため、まず写真アプリで短く切り取ってから選んでください。');let btn=$('convert');btn.disabled=true;try{status('変換エンジンを読み込み中… 最大60秒で判定します');const {FFmpeg}=await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');const {toBlobURL}=await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js');const workerSource="import 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';";const workerURL=URL.createObjectURL(new Blob([workerSource],{type:'text/javascript'}));const ff=new FFmpeg();const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';await Promise.race([ff.load({classWorkerURL:workerURL,coreURL:await toBlobURL(base+'/ffmpeg-core.js','text/javascript'),wasmURL:await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')}),new Promise((_,reject)=>setTimeout(()=>reject(Error('読み込みが60秒を超えました。Safariでは変換エンジンが動かない可能性があります')),60000))]);URL.revokeObjectURL(workerURL);let ext=(file.name.match(/\.[a-z0-9]+$/i)||['.mov'])[0];let input='input'+ext;await ff.writeFile(input,new Uint8Array(await file.arrayBuffer()));let names=[];for(let i=0;i<parts.length;i++){status('シーン '+(i+1)+'/'+parts.length+' を変換中…');let p=parts[i],name='clip'+i+'.mp4';let args=['-ss',String(p.start),'-i',input,'-t',String(p.end-p.start)];if($('quality').value!=='original')args.push('-vf','scale=-2:'+ $('quality').value+':force_original_aspect_ratio=decrease');args.push('-c:v','libx264','-preset','ultrafast','-crf','24','-pix_fmt','yuv420p','-c:a','aac','-b:a','128k','-movflags','+faststart','-y',name);if(await ff.exec(args)!==0)throw Error('動画の変換に失敗しました');names.push(name)}let final=names[0];if(names.length>1){status('シーンを結合中…');await ff.writeFile('list.txt',new TextEncoder().encode(names.map(n=>"file '"+n+"'").join('\n')));if(await ff.exec(['-f','concat','-safe','0','-i','list.txt','-c','copy','-movflags','+faststart','-y','result.mp4'])!==0)throw Error('結合に失敗しました');final='result.mp4'}let bytes=await ff.readFile(final);output=new File([new Uint8Array(bytes)],'LINE_video.mp4',{type:'video/mp4'});if(resultUrl)URL.revokeObjectURL(resultUrl);resultUrl=URL.createObjectURL(output);$('result').src=resultUrl;$('result').hidden=false;$('save').href=resultUrl;$('save').hidden=false;$('share').hidden=false;status('変換完了！ '+(output.size/1048576).toFixed(1)+' MB');ff.terminate()}catch(e){status('変換できませんでした: '+e.message+'\nSafariの制限や変換エンジンの読み込み失敗が考えられます。短い動画で再試行してください。改善しない場合はiPhoneのショートカットやWindowsでの変換が必要です。')}finally{btn.disabled=false}};
+$('convert').onclick=async()=>{
+if(!file)return alert('動画を選んでください');
+const parts=clips.length?clips:[{start:+$('start').value,end:+$('end').value}];
+if(parts.some(p=>p.end-p.start<.1))return alert('切り取り範囲を確認してください');
+if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){status('このSafariはブラウザ内での動画書き出しに対応していません。');return}
+const types=['video/mp4;codecs="avc1.42E01E,mp4a.40.2"','video/mp4;codecs="avc1.42E01E"','video/mp4'];
+const mime=types.find(t=>MediaRecorder.isTypeSupported(t));
+if(!mime){status('このSafariではH.264のMP4録画がサポートされていません。');return}
+const btn=$('convert');btn.disabled=true;
+let rec=null,stream=null,ctx=null,raf=0,src=null,ac=null;
+const v=document.createElement('video');v.src=sourceUrl;v.playsInline=true;v.preload='auto';v.muted=false;
+const canvas=document.createElement('canvas');const g=canvas.getContext('2d',{alpha:false});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const seek=t=>new Promise((resolve,reject)=>{let timer=setTimeout(()=>reject(Error('動画の位置移動がタイムアウトしました')),12000);v.addEventListener('seeked',()=>{clearTimeout(timer);resolve()},{once:true});v.currentTime=t});
+try{
+status('ブラウザ標準の録画機能を準備中…');
+await new Promise((resolve,reject)=>{if(v.readyState>=1)return resolve();v.onloadedmetadata=resolve;v.onerror=()=>reject(Error('動画を読み込めません'))});
+const h=$('quality').value==='original'?Math.min(v.videoHeight,1080):Number($('quality').value);
+const scale=Math.min(1,h/v.videoHeight);canvas.width=Math.max(2,Math.round(v.videoWidth*scale/2)*2);canvas.height=Math.max(2,Math.round(v.videoHeight*scale/2)*2);
+stream=canvas.captureStream(24);
+try{ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();src=ac.createMediaElementSource(v);const dest=ac.createMediaStreamDestination();src.connect(dest);for(const track of dest.stream.getAudioTracks())stream.addTrack(track)}catch(err){status('音声接続に失敗。無音で書き出す場合があります。')}
+let chunks=[];rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:$('quality').value==='720'?1800000:3500000});
+const done=new Promise((resolve,reject)=>{rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.onerror=e=>reject(Error('録画エラー'));rec.onstop=resolve});
+let drawing=true;function draw(){if(!drawing)return;try{if(v.readyState>=2)g.drawImage(v,0,0,canvas.width,canvas.height)}catch(e){}raf=requestAnimationFrame(draw)}draw();
+await seek(parts[0].start);g.drawImage(v,0,0,canvas.width,canvas.height);rec.start(1000);
+for(let i=0;i<parts.length;i++){
+const p=parts[i];if(i)await seek(p.start);
+status('シーン '+(i+1)+'/'+parts.length+' を録画中…（再生時間と同じ程度かかります）');
+await v.play();
+await new Promise((resolve,reject)=>{const tick=()=>{if(v.error){reject(Error('動画の再生に失敗'));return}if(v.currentTime>=p.end-.06||v.ended){v.pause();resolve();return}setTimeout(tick,70)};tick()});
+}
+v.pause();drawing=false;cancelAnimationFrame(raf);rec.stop();await done;
+if(!chunks.length)throw Error('書き出しデータがありません');
+output=new File(chunks,'LINE_video.mp4',{type:'video/mp4'});
+if(resultUrl)URL.revokeObjectURL(resultUrl);resultUrl=URL.createObjectURL(output);
+$('result').src=resultUrl;$('result').hidden=false;$('save').href=resultUrl;$('save').hidden=false;$('share').hidden=false;
+status('変換完了！ '+(output.size/1048576).toFixed(1)+' MB。LINEで再生できるか確認してください。');
+}catch(e){status('書き出せませんでした: '+e.message+'。Safariの録画機能に制限がある可能性があります。')}
+finally{v.pause();cancelAnimationFrame(raf);if(rec&&rec.state!=='inactive')rec.stop();if(stream)stream.getTracks().forEach(t=>t.stop());if(ac)ac.close().catch(()=>{});btn.disabled=false}
+};
 $('share').onclick=async()=>{if(!output)return;try{if(navigator.canShare?.({files:[output]}))await navigator.share({files:[output],title:'LINE用動画'});else alert('動画を保存してからLINEで共有してください')}catch(e){if(e.name!=='AbortError')alert(e.message)}};
 </script></body></html>
